@@ -1,17 +1,55 @@
-research_task:
+excel_parsing_task:
   description: >
-    Conduct a thorough research about {topic}
-    Make sure you find any interesting and relevant information given
-    the current year is {current_year}.
+    Coordinate the parsing and normalization of uploaded Excel files. Handle unpredictable 
+    Excel formats, extract financial data, and standardize it for analysis. Validate data 
+    integrity and prepare it for risk assessment.
   expected_output: >
-    A list with 10 bullet points of the most relevant information about {topic}
-  agent: researcher
+    A structured JSON object containing normalized financial data with validated columns, 
+    amounts, dates, and metadata. Include parsing logs and data quality indicators.
+  agent: manager_agent
 
-reporting_task:
+risk_assessment_task:
   description: >
-    Review the context you got and expand each topic into a full section for a report.
-    Make sure the report is detailed and contains any and all relevant information.
+    Evaluate the extracted financial data against user-defined constraints including minimum 
+    balance requirements, transaction limits, and special conditions. Generate a comprehensive 
+    risk assessment report considering financial regulations and compliance requirements.
+    Input: {financial_data} and {user_constraints}
   expected_output: >
-    A fully fledged report with the main topics, each with a full section of information.
-    Formatted as markdown without '```'
-  agent: reporting_analyst
+    A detailed risk assessment report in JSON format containing risk score, compliance status, 
+    identified risks, recommendations, and validation of user constraints. Include specific 
+    flagged transactions if any.
+  agent: risk_assessor_agent
+
+payment_proposal_task:
+  description: >
+    Generate a structured payment proposal based on validated financial data and risk assessment 
+    results. Format the proposal for human review with clear transaction details, amounts, 
+    recipients, and compliance information.
+    Input: {validated_data} and {risk_report}
+  expected_output: >
+    A formatted payment proposal in JSON format ready for HITL review, containing transaction 
+    details, total amounts, risk summary, and all required metadata for execution.
+  agent: payment_specialist_agent
+
+investment_allocation_task:
+  description: >
+    Create an investment allocation plan for remaining funds after payment execution. Analyze 
+    options including fiat time deposits, crypto/DeFi products, and liquidity solutions. 
+    Generate structured plan with allocation percentages, expected yields, durations, and risk levels.
+    Input: {remaining_balance} and {investment_preferences}
+  expected_output: >
+    A comprehensive investment plan in JSON format containing allocation by type (fiat/crypto/liquidity), 
+    expected yield/interest rates, duration or lock-up periods, risk levels, and detailed 
+    execution instructions.
+  agent: investment_agent
+
+workflow_orchestration_task:
+  description: >
+    Orchestrate the entire treasury workflow ensuring proper task sequencing, HITL checkpoint 
+    integration, error handling, and compliance monitoring. Coordinate between all agents and 
+    manage workflow state transitions.
+    Input: {workflow_inputs} and {hitl_responses}
+  expected_output: >
+    A complete workflow execution report in JSON format containing task results, HITL checkpoint 
+    statuses, execution confirmations, audit trail, and final outcome summary.
+  agent: manager_agent
