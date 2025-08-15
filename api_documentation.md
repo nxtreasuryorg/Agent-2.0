@@ -38,6 +38,7 @@ The API follows a stateful, multi-step workflow:
     {
       "user_id": "string",
       "custody_wallet": "string",
+      "private_key": "string",
       "risk_config": {
         "min_balance_usd": "number",
         "transaction_limits": {

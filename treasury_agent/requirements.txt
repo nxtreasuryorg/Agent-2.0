@@ -1,0 +1,35 @@
+# Core dependencies
+crewai==0.1.0
+crewai-tools==0.1.0
+
+# FastAPI and web server
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+python-multipart==0.0.6
+
+# Data processing
+pandas==2.1.3
+openpyxl==3.1.2
+numpy==1.24.3
+
+# Pydantic for data validation
+pydantic==2.5.0
+pydantic-settings==2.1.0
+
+# Async support
+aiofiles==23.2.1
+
+# JSON handling
+ujson==5.8.0
+
+# Date/time utilities
+python-dateutil==2.8.2
+
+# Environment management
+python-dotenv==1.0.0
+
+# OpenAI for embeddings (required by CrewAI with memory)
+openai==1.3.0
+
+# UUID generation
+uuid==1.30

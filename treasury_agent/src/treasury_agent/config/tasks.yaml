@@ -1,55 +1,86 @@
-excel_parsing_task:
+workflow_coordination:
   description: >
-    Coordinate the parsing and normalization of uploaded Excel files. Handle unpredictable 
-    Excel formats, extract financial data, and standardize it for analysis. Validate data 
-    integrity and prepare it for risk assessment.
+    Coordinate the entire treasury workflow, ensuring all tasks are completed in the correct sequence.
+    Monitor compliance with constraints and enforce HITL checkpoints at critical stages.
+    Delegate tasks to specialized agents and collect their outputs for decision making.
   expected_output: >
-    A structured JSON object containing normalized financial data with validated columns, 
-    amounts, dates, and metadata. Include parsing logs and data quality indicators.
-  agent: manager_agent
+    A comprehensive workflow execution report including all completed tasks, decisions made,
+    HITL checkpoint results, and final status of the treasury operation.
+  agent: manager
 
-risk_assessment_task:
+risk_assessment:
   description: >
-    Evaluate the extracted financial data against user-defined constraints including minimum 
-    balance requirements, transaction limits, and special conditions. Generate a comprehensive 
-    risk assessment report considering financial regulations and compliance requirements.
-    Input: {financial_data} and {user_constraints}
+    Analyze the financial data extracted from the Excel file and evaluate risks based on:
+    - Data integrity and completeness
+    - User-defined constraints (minimum balance: {minimum_balance}, transaction limits: {transaction_limits})
+    - Payment amounts and recipients
+    - Overall financial exposure
+    Generate a detailed risk assessment report with risk scores and recommendations.
   expected_output: >
-    A detailed risk assessment report in JSON format containing risk score, compliance status, 
-    identified risks, recommendations, and validation of user constraints. Include specific 
-    flagged transactions if any.
-  agent: risk_assessor_agent
+    A structured risk assessment report containing:
+    - Overall risk level (low/medium/high)
+    - Risk score (0-100)
+    - Specific risk flags identified
+    - Compliance status with user constraints
+    - Recommendations for risk mitigation
+  agent: risk_assessor
 
-payment_proposal_task:
+payment_proposal_generation:
   description: >
-    Generate a structured payment proposal based on validated financial data and risk assessment 
-    results. Format the proposal for human review with clear transaction details, amounts, 
-    recipients, and compliance information.
-    Input: {validated_data} and {risk_report}
+    Create a structured payment proposal based on the validated financial data and risk assessment.
+    Format the proposal for human review with clear payment details, amounts, and recipients.
+    Ensure all payments comply with organizational policies and constraints.
   expected_output: >
-    A formatted payment proposal in JSON format ready for HITL review, containing transaction 
-    details, total amounts, risk summary, and all required metadata for execution.
-  agent: payment_specialist_agent
+    A formatted payment proposal containing:
+    - Unique proposal ID
+    - List of all payments with recipients, amounts, and references
+    - Total payment amount and remaining balance
+    - Risk assessment summary
+    - Constraints validation results
+    - HITL approval requirements
+  agent: payment_specialist
 
-investment_allocation_task:
+payment_execution:
   description: >
-    Create an investment allocation plan for remaining funds after payment execution. Analyze 
-    options including fiat time deposits, crypto/DeFi products, and liquidity solutions. 
-    Generate structured plan with allocation percentages, expected yields, durations, and risk levels.
-    Input: {remaining_balance} and {investment_preferences}
+    Execute the approved payment proposal after receiving HITL approval.
+    Process each payment transaction and track execution status.
+    Generate execution report with transaction confirmations and updated balances.
   expected_output: >
-    A comprehensive investment plan in JSON format containing allocation by type (fiat/crypto/liquidity), 
-    expected yield/interest rates, duration or lock-up periods, risk levels, and detailed 
-    execution instructions.
+    Payment execution report containing:
+    - Execution ID and status
+    - Transaction details for each payment
+    - Success/failure status for each transaction
+    - Processing fees and net amounts
+    - Updated balance information
+  agent: payment_specialist
+
+investment_planning:
+  description: >
+    Analyze the remaining balance after payment execution and create an optimized investment plan.
+    Consider risk tolerance: {risk_tolerance} and investment preferences.
+    Allocate funds across liquidity products, stablecoins, and other short-term investments.
+    Generate a detailed investment plan with expected returns and risk analysis.
+  expected_output: >
+    A comprehensive investment plan containing:
+    - Unique plan ID
+    - Allocation across different investment types
+    - Expected yields and returns
+    - Risk profile and diversification analysis
+    - Liquidity analysis
+    - Recommendations for optimization
+    - HITL approval requirements
   agent: investment_agent
 
-workflow_orchestration_task:
+investment_execution:
   description: >
-    Orchestrate the entire treasury workflow ensuring proper task sequencing, HITL checkpoint 
-    integration, error handling, and compliance monitoring. Coordinate between all agents and 
-    manage workflow state transitions.
-    Input: {workflow_inputs} and {hitl_responses}
+    Execute the approved investment plan after receiving HITL approval.
+    Allocate funds to the specified investment products and track execution status.
+    Generate execution report with investment confirmations and expected maturity dates.
   expected_output: >
-    A complete workflow execution report in JSON format containing task results, HITL checkpoint 
-    statuses, execution confirmations, audit trail, and final outcome summary.
-  agent: manager_agent
+    Investment execution report containing:
+    - Execution status for each allocation
+    - Investment confirmations and reference numbers
+    - Expected maturity dates and yields
+    - Total invested amount
+    - Execution timestamps
+  agent: investment_agent

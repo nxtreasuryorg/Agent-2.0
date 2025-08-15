@@ -1,236 +1,88 @@
-from crewai.tools import BaseTool
-from typing import Type, Dict, Any, List
-from pydantic import BaseModel, Field
+"""Excel Parser Tool for processing financial data from Excel files."""
 import pandas as pd
-import openpyxl
 import json
-from pathlib import Path
-import logging
-
+from typing import Dict, Any, List, Optional
+from crewai.tools import BaseTool
+from pydantic import BaseModel, Field
+import io
 
 class ExcelParserInput(BaseModel):
-    """Input schema for ExcelParserTool."""
-    file_path: str = Field(..., description="Path to the Excel file to parse")
-    user_constraints: Dict[str, Any] = Field(
-        default={}, 
-        description="User-defined constraints including minimum balance, transaction limits, special conditions"
-    )
-
+    """Input schema for Excel Parser Tool."""
+    file_content: bytes = Field(description="Binary content of the Excel file")
+    sheet_name: Optional[str] = Field(default=None, description="Specific sheet to parse")
 
 class ExcelParserTool(BaseTool):
-    name: str = "Excel Parser and Normalizer"
-    description: str = (
-        "Handles unpredictable Excel file uploads, extracts financial data, and standardizes it for analysis. "
-        "Supports various Excel formats, detects sheets/headers dynamically, normalizes columns, handles merged cells "
-        "and empty rows, and outputs structured JSON with data quality indicators."
-    )
-    args_schema: Type[BaseModel] = ExcelParserInput
+    name: str = "Excel Parser Tool"
+    description: str = """
+    Parse and normalize Excel files containing financial data.
+    Handles various formats, detects sheets/headers dynamically,
+    and extracts structured data for financial analysis.
+    """
+    args_schema: type[BaseModel] = ExcelParserInput
 
-    def _run(self, file_path: str, user_constraints: Dict[str, Any] = None) -> str:
-        """
-        Parse and normalize Excel file containing financial data.
-        
-        Args:
-            file_path: Path to the Excel file
-            user_constraints: User-defined financial constraints
-            
-        Returns:
-            JSON string containing normalized financial data with metadata
-        """
+    def _run(self, file_content: bytes, sheet_name: Optional[str] = None) -> Dict[str, Any]:
+        """Parse Excel file and extract financial data."""
         try:
-            if user_constraints is None:
-                user_constraints = {}
-                
-            # Initialize result structure
+            # Read Excel file from bytes
+            excel_file = io.BytesIO(file_content)
+            
+            # Get all sheet names
+            xl_file = pd.ExcelFile(excel_file)
+            sheets = xl_file.sheet_names
+            
             result = {
-                "success": True,
-                "normalized_data": [],
-                "metadata": {
-                    "file_path": file_path,
-                    "sheets_processed": [],
-                    "total_records": 0,
-                    "data_quality": {
-                        "valid_records": 0,
-                        "invalid_records": 0,
-                        "warnings": []
+                "sheets": sheets,
+                "data": {},
+                "summary": {}
+            }
+            
+            # Parse specified sheet or all sheets
+            sheets_to_parse = [sheet_name] if sheet_name else sheets
+            
+            for sheet in sheets_to_parse:
+                if sheet in sheets:
+                    df = pd.read_excel(excel_file, sheet_name=sheet)
+                    
+                    # Clean and normalize data
+                    df = df.dropna(how='all')  # Remove empty rows
+                    df = df.dropna(axis=1, how='all')  # Remove empty columns
+                    
+                    # Detect numeric columns
+                    numeric_cols = df.select_dtypes(include=['number']).columns.tolist()
+                    
+                    # Store parsed data
+                    result["data"][sheet] = {
+                        "columns": df.columns.tolist(),
+                        "rows": df.shape[0],
+                        "numeric_columns": numeric_cols,
+                        "records": df.to_dict(orient='records')
                     }
-                },
-                "user_constraints": user_constraints,
-                "parsing_logs": []
+                    
+                    # Generate summary statistics for numeric columns
+                    if numeric_cols:
+                        summary = {}
+                        for col in numeric_cols:
+                            summary[col] = {
+                                "sum": float(df[col].sum()),
+                                "mean": float(df[col].mean()),
+                                "min": float(df[col].min()),
+                                "max": float(df[col].max()),
+                                "count": int(df[col].count())
+                            }
+                        result["summary"][sheet] = summary
+            
+            # Add metadata
+            result["metadata"] = {
+                "total_sheets": len(sheets),
+                "parsed_sheets": len(sheets_to_parse),
+                "success": True
             }
             
-            # Load Excel file and detect sheets
-            excel_file = pd.ExcelFile(file_path)
-            result["parsing_logs"].append(f"Loaded Excel file with {len(excel_file.sheet_names)} sheets")
-            
-            all_financial_data = []
-            
-            # Process each sheet
-            for sheet_name in excel_file.sheet_names:
-                try:
-                    df = pd.read_excel(file_path, sheet_name=sheet_name)
-                    result["metadata"]["sheets_processed"].append(sheet_name)
-                    result["parsing_logs"].append(f"Processing sheet: {sheet_name}")
-                    
-                    # Auto-detect financial columns
-                    financial_data = self._extract_financial_data(df, sheet_name)
-                    all_financial_data.extend(financial_data)
-                    
-                except Exception as e:
-                    result["parsing_logs"].append(f"Warning: Could not process sheet {sheet_name}: {str(e)}")
-                    result["metadata"]["data_quality"]["warnings"].append(f"Sheet {sheet_name} processing failed: {str(e)}")
-            
-            # Normalize and validate data
-            result["normalized_data"] = self._normalize_financial_data(all_financial_data)
-            result["metadata"]["total_records"] = len(result["normalized_data"])
-            
-            # Data quality assessment
-            valid_records = 0
-            invalid_records = 0
-            
-            for record in result["normalized_data"]:
-                if self._validate_record(record, user_constraints):
-                    valid_records += 1
-                else:
-                    invalid_records += 1
-            
-            result["metadata"]["data_quality"]["valid_records"] = valid_records
-            result["metadata"]["data_quality"]["invalid_records"] = invalid_records
-            
-            result["parsing_logs"].append(f"Parsing completed: {valid_records} valid, {invalid_records} invalid records")
-            
-            return json.dumps(result, indent=2)
+            return result
             
         except Exception as e:
-            error_result = {
-                "success": False,
+            return {
                 "error": str(e),
-                "parsing_logs": [f"Excel parsing failed: {str(e)}"]
+                "success": False,
+                "metadata": {"error_type": type(e).__name__}
             }
-            return json.dumps(error_result, indent=2)
-    
-    def _extract_financial_data(self, df: pd.DataFrame, sheet_name: str) -> List[Dict[str, Any]]:
-        """Extract financial data from DataFrame by detecting common financial columns."""
-        financial_data = []
-        
-        # Common column mappings (case-insensitive)
-        column_mappings = {
-            'amount': ['amount', 'value', 'sum', 'total', 'payment', 'balance'],
-            'description': ['description', 'details', 'memo', 'reference', 'note'],
-            'date': ['date', 'transaction_date', 'payment_date', 'due_date'],
-            'account': ['account', 'account_number', 'from_account', 'to_account'],
-            'recipient': ['recipient', 'payee', 'vendor', 'supplier', 'beneficiary'],
-            'currency': ['currency', 'curr', 'ccy'],
-            'category': ['category', 'type', 'classification']
-        }
-        
-        # Auto-detect columns
-        detected_columns = {}
-        for col in df.columns:
-            col_lower = str(col).lower().strip()
-            for standard_name, variations in column_mappings.items():
-                if any(variation in col_lower for variation in variations):
-                    detected_columns[standard_name] = col
-                    break
-        
-        # Process each row
-        for index, row in df.iterrows():
-            try:
-                record = {
-                    "sheet_name": sheet_name,
-                    "row_number": index + 2,  # Excel row number (accounting for header)
-                    "amount": None,
-                    "description": "",
-                    "date": None,
-                    "account": "",
-                    "recipient": "",
-                    "currency": "USD",  # Default
-                    "category": "",
-                    "raw_data": {}
-                }
-                
-                # Extract data based on detected columns
-                for standard_name, excel_col in detected_columns.items():
-                    value = row.get(excel_col)
-                    if pd.notna(value):
-                        record[standard_name] = str(value).strip()
-                
-                # Store raw data for reference
-                record["raw_data"] = {str(k): str(v) for k, v in row.items() if pd.notna(v)}
-                
-                # Only include rows with amount data
-                if record["amount"] and record["amount"] != "":
-                    financial_data.append(record)
-                    
-            except Exception as e:
-                logging.warning(f"Could not process row {index} in sheet {sheet_name}: {e}")
-        
-        return financial_data
-    
-    def _normalize_financial_data(self, raw_data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Normalize financial data for consistency."""
-        normalized_data = []
-        
-        for record in raw_data:
-            try:
-                normalized_record = record.copy()
-                
-                # Normalize amount
-                if record.get("amount"):
-                    amount_str = str(record["amount"]).replace(",", "").replace("$", "").strip()
-                    try:
-                        normalized_record["amount"] = float(amount_str)
-                    except:
-                        normalized_record["amount"] = 0.0
-                        normalized_record["validation_errors"] = normalized_record.get("validation_errors", [])
-                        normalized_record["validation_errors"].append("Invalid amount format")
-                
-                # Normalize date
-                if record.get("date"):
-                    try:
-                        date_value = pd.to_datetime(record["date"])
-                        normalized_record["date"] = date_value.isoformat()
-                    except:
-                        normalized_record["date"] = None
-                        normalized_record["validation_errors"] = normalized_record.get("validation_errors", [])
-                        normalized_record["validation_errors"].append("Invalid date format")
-                
-                # Set defaults for missing required fields
-                if not normalized_record.get("currency"):
-                    normalized_record["currency"] = "USD"
-                
-                if not normalized_record.get("description"):
-                    normalized_record["description"] = "No description provided"
-                
-                normalized_data.append(normalized_record)
-                
-            except Exception as e:
-                logging.warning(f"Could not normalize record: {e}")
-        
-        return normalized_data
-    
-    def _validate_record(self, record: Dict[str, Any], user_constraints: Dict[str, Any]) -> bool:
-        """Validate financial record against user constraints and business rules."""
-        try:
-            # Basic validations
-            if not record.get("amount") or record["amount"] <= 0:
-                return False
-            
-            # User constraint validations
-            min_balance = user_constraints.get("minimum_balance", 0)
-            if record["amount"] < min_balance:
-                record["validation_errors"] = record.get("validation_errors", [])
-                record["validation_errors"].append(f"Amount below minimum balance requirement: {min_balance}")
-                return False
-            
-            max_transaction = user_constraints.get("transaction_limit")
-            if max_transaction and record["amount"] > max_transaction:
-                record["validation_errors"] = record.get("validation_errors", [])
-                record["validation_errors"].append(f"Amount exceeds transaction limit: {max_transaction}")
-                return False
-            
-            return True
-            
-        except Exception as e:
-            logging.warning(f"Validation error for record: {e}")
-            return False

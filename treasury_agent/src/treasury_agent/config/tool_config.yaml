@@ -1,0 +1,20 @@
+---
+# Treasury Agent Tools Configuration
+# All configurable parameters for treasury management tools
+
+payment_executor:
+  processing_fee_rate: 0.001  # 0.1% processing fee for payments
+  default_currency: "USDT"    # Default currency for payments
+  simulation_mode: true       # Always run in simulation mode for safety
+
+investment_allocator:
+  execution_fee_rate: 0.001           # 0.1% execution fee for investments  
+  min_recommendation_threshold: 1000  # Minimum amount to generate recommendations
+  default_risk_tolerance: "medium"    # Default risk tolerance level
+
+# Environment-specific overrides (can be set via env vars)
+environment:
+  processing_fee_rate: ${TREASURY_PROCESSING_FEE_RATE:0.001}
+  execution_fee_rate: ${TREASURY_EXECUTION_FEE_RATE:0.001}
+  min_threshold: ${TREASURY_MIN_THRESHOLD:1000}
+  default_currency: ${TREASURY_CURRENCY:USDT}

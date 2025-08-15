@@ -98,22 +98,15 @@ Hierarchical workflow coordinated by **Manager Agent**:
 
 ---
 
-## 8. Security and Compliance
-- Secure handling of financial data with audit trails.  
-- Role-based access control for sensitive data/actions.  
-- Logging of agent decisions, human approvals, and executions.  
-- Compliance with relevant financial regulations.
 
----
-
-## 9. Performance and Scalability
+## 8. Performance and Scalability
 - Maximum concurrent workflows.  
 - Expected Excel file sizes.  
 - Performance targets (latency, throughput).  
 
 ---
 
-## 10. Extensibility
+## 9. Extensibility
 - Ability to add new agents or tasks in the future.  
 - Modular tools for easy replacement (e.g., Excel parser, investment allocator).
 
@@ -211,12 +204,7 @@ Hierarchical workflow coordinated by **Manager Agent**:
 - **Libraries/Frameworks**: `Streamlit`, `Flask`, `FastAPI`, HTML/JS.
 - **Notes**: Display proposals/plans clearly, capture decisions/timestamps, trigger notifications.
 
-### 7. Notification Tools
-- **Purpose**: Alert humans of pending approvals.
-- **Libraries**: Email (`smtplib`, SendGrid, AWS SES), messaging (Slack API, Twilio).
-- **Notes**: Include workflow context, track acknowledgment/pending status.
-
-### 8. Logging and Monitoring
+### 7. Logging and Monitoring
 - **Purpose**: Audit workflow execution and errors.
 - **Libraries**: Python `logging`, optional `Sentry`, `Prometheus`, ELK stack.
 - **Notes**: Log agent outputs, HITL approvals, executions; include timestamps and workflow IDs.
