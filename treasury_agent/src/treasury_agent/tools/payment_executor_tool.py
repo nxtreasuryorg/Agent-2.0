@@ -19,35 +19,10 @@ try:
 except ImportError:
     WEB3_AVAILABLE = False
 
-# Dynamic import of client-side USDT utilities
+# Client and server will be deployed separately
+# USDT utilities will be handled by the server's own web3 implementation
 CLIENT_UTILS_AVAILABLE = False
 client_utils = None
-
-try:
-    # Calculate the correct path to nxtApp/nxtAppCore
-    current_file = os.path.abspath(__file__)
-    project_root = os.path.dirname(current_file)
-    # Navigate up to Agent-2.0 root, then to project root, then to nxtApp/nxtAppCore
-    for _ in range(6):  # Go up 6 levels to reach cb project root
-        project_root = os.path.dirname(project_root)
-    
-    client_path = os.path.join(project_root, "nxtApp", "nxtAppCore")
-    
-    if os.path.exists(client_path):
-        sys.path.insert(0, client_path)
-        # Try to import the USDT utilities from the client side
-        import utils as client_utils
-        CLIENT_UTILS_AVAILABLE = True
-        print(f"Successfully imported client USDT utilities from: {client_path}")
-    else:
-        print(f"Client path not found: {client_path}")
-        
-except ImportError as e:
-    print(f"Client utils not available: {e}")
-    CLIENT_UTILS_AVAILABLE = False
-except Exception as e:
-    print(f"Error setting up client utils: {e}")
-    CLIENT_UTILS_AVAILABLE = False
 
 class PaymentExecutorInput(BaseModel):
     """Input schema for Payment Executor Tool."""
