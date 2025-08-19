@@ -2,7 +2,7 @@
 
 
 ## 1. Overview
-The Treasury Manager AI Agent automates financial processes, including risk assessment, payment proposal generation, payment execution, and investment allocation. The system uses **CrewAI for agent orchestration** and **CrewAI Flow** for workflow sequencing, with **human-in-the-loop (HITL)** checkpoints to ensure compliance.
+The Treasury Manager AI Agent automates financial processes, including risk assessment, payment proposal generation, and payment execution. The system uses **CrewAI for agent orchestration** and **CrewAI Flow** for workflow sequencing, with **human-in-the-loop (HITL)** checkpoints to ensure compliance.
 
 ---
 
@@ -15,12 +15,11 @@ The Treasury Manager AI Agent automates financial processes, including risk asse
   - Considers **user input constraints** (minimum balance, transaction limits, special conditions).  
   - Returns risk assessment report to Manager Agent.
 - **Payment Specialist Agent**: Generates and formats payment proposals based on validated data.
-- **Investment Agent**: Allocates remaining funds to investment opportunities post-payment execution, including fiat, crypto, and liquidity options.
 
 ### 2.2 Tools
 - **Excel Parser & Normalizer**: Handles unpredictable Excel uploads, extracts, and standardizes data for agents.
 - **Proposal Formatter**: Standardizes payment proposals for human review.
-- **Execution Tools**: Interfaces for executing payments and investments in connected financial systems.
+- **Execution Tools**: Interfaces for executing payments in connected financial systems.
 - **HITL Interface**: User-friendly interface for human approval/rejection of proposals and investment plans.
 - **Notification System**: Alerts human reviewers when approvals are needed.
 
@@ -47,20 +46,8 @@ Hierarchical workflow coordinated by **Manager Agent**:
 5. **Payment Execution**:  
    - Manager triggers execution after approval.
 
-6. **Investment Allocation**:  
-   - **Investment Agent** allocates remaining balance to investments.  
-   - Options include:
-     - **Fiat / Time Deposit**: Low-risk bank deposit with fixed interest.  
-     - **Crypto / DeFi**: Higher-risk yield products or staking.  
-     - **Liquidity Products / Stablecoins**: Flexible access with some yield.  
-   - Generates structured plan with allocation, expected yield, duration, and risk.  
-
-7. **HITL #2: Human Confirmation of Investment Plan**  
-   - Human approves/rejects investment plan.  
-   - Reject → Workflow ends; Approve → Execute investment.
-
-8. **Workflow Completion**:  
-   - Ends after investment execution or rejection at HITL points.
+6. **Workflow Completion**:  
+   - Ends after payment execution or rejection at the HITL point.
 
 ---
 
@@ -76,7 +63,7 @@ Hierarchical workflow coordinated by **Manager Agent**:
   - Risk assessment report.  
   - Formatted payment proposal for HITL.  
   - Executed payment confirmation.  
-  - Investment plan and execution confirmation.  
+  
 
 - **Format requirements**: Structured JSON schema for agent communication.
 
@@ -91,7 +78,7 @@ Hierarchical workflow coordinated by **Manager Agent**:
 ---
 
 ## 7. Human-in-the-Loop (HITL) Requirements
-- Approval after payment proposal generation and investment plan creation.  
+- Approval after payment proposal generation.  
 - HITL interface with structured views of proposals and plans.  
 - Notifications and reminders for pending approvals.  
 - Escalation policies if humans do not respond in time.
@@ -139,40 +126,7 @@ Hierarchical workflow coordinated by **Manager Agent**:
 
 ---
 
-## 15. Investment Agent Details
-
-**Purpose**: Allocate remaining funds to short-term or flexible investment options after payment execution.  
-
-**Investment Types**:  
-1. **Fiat / Time Deposit**  
-   - Traditional bank deposit for a fixed period with guaranteed returns.  
-   - Low risk, fixed interest.  
-   - Manager Agent records expected maturity and interest.  
-
-2. **Crypto / DeFi**  
-   - Decentralized finance products, staking, or yield farming.  
-   - Higher potential returns but higher risk (price volatility, smart contract risk).  
-   - Manager Agent tracks lock-up period, expected yield, and associated risks.  
-
-3. **Liquidity Products / Stablecoins**  
-   - Low-risk, interest-bearing products or liquidity pools.  
-   - Flexible access with some yield.  
-   - Returns structured plan for HITL approval.  
-
-**Workflow**:  
-- Manager Agent provides remaining balance and possible options.  
-- Investment Agent generates structured investment plan with:  
-  - Allocation by type  
-  - Expected yield/interest  
-  - Duration or lock-up period  
-  - Risk level  
-- Human-in-the-loop (HITL) approves investment plan before execution.  
-- Execution Tools perform actual allocation after approval.  
-- Results and confirmations are logged for audit and reporting.
-
----
-
-## 16. Tools & Implementation Suggestions
+## 15. Tools & Implementation Suggestions
 
 ### 1. Excel Parser & Normalizer
 - **Purpose**: Handle unpredictable Excel uploads, extract data, and standardize it for agents.
@@ -190,14 +144,10 @@ Hierarchical workflow coordinated by **Manager Agent**:
 - **Notes**: Standardize layout, include metadata; output HTML, PDF, or JSON.
 
 ### 4. Execution Tools
-- **Purpose**: Execute payments and investments.
+- **Purpose**: Execute payments.
 - **Libraries**: REST clients (`requests`), platform SDKs.
 - **Notes**: Ensure transactional safety, confirm execution, handle retries/failures.
 
-### 5. Investment Allocation Tools
-- **Purpose**: Allocate remaining funds.
-- **Libraries**: Python allocation algorithms, financial system APIs.
-- **Notes**: Accept remaining balance, generate investment plan, return structured output.
 
 ### 6. HITL Interface Tools
 - **Purpose**: Allow human approvals/rejections.
@@ -237,18 +187,6 @@ Workflow:
      |       └─ Reject → End Workflow
      |
      ├──> [Execute Payment]  <-- Triggered only after approval
-     |
-     ├──> [Investment Agent]
-     |       └─ Allocate remaining balance to investments
-     |       ├─ Investment Options:
-     |       |       ├─ Fiat / Time Deposit #Skip for now
-     |       |       ├─ Crypto / DeFi Products #Skip for now
-     |       |       └─ Liquidity / Stablecoins
-     |       └─ Return investment plan to Manager
-     |
-     ├── HITL #2: Human Confirmation of Investment Plan
-     |       ├─ Approve → Execute investment
-     |       └─ Reject → End Workflow
      |
      v
 [End Workflow]

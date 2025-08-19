@@ -2,7 +2,7 @@
 
 ## 1. Overview
 
-The Treasury Manager AI Agent API automates a comprehensive treasury workflow, from payment processing to investment allocation. The system uses a multi-agent architecture orchestrated by CrewAI to handle complex financial tasks, with Human-in-the-Loop (HITL) checkpoints for critical decisions.
+The Treasury Manager AI Agent API automates a comprehensive treasury workflow for payment processing. The system uses a multi-agent architecture orchestrated by CrewAI to handle complex financial tasks, with Human-in-the-Loop (HITL) checkpoints for critical decisions.
 
 **Base URL**: `http://localhost:5001`
 
@@ -14,9 +14,6 @@ The API follows a stateful, multi-step workflow:
 2.  **Review Payment Proposal**: Retrieve and review the generated payment proposal.
 3.  **Approve Payment Proposal**: Approve, reject, or partially approve payments (HITL #1).
 4.  **Get Payment Execution Result**: Retrieve the results of the payment execution.
-5.  **Get Investment Plan**: After payments, retrieve the generated investment plan for remaining funds.
-6.  **Approve Investment Plan**: Approve or reject the investment plan (HITL #2).
-7.  **Get Investment Execution Result**: Retrieve the results of the investment execution.
 
 ## 3. API Endpoints
 
@@ -102,63 +99,6 @@ The API follows a stateful, multi-step workflow:
 
 ---
 
-### Workflow Step 5: Get Investment Plan
-
-*   **Endpoint**: `GET /get_investment_plan/<proposal_id>`
-*   **Description**: After payment execution, this returns the AI-generated investment plan for the remaining funds.
-*   **Success Response**:
-    ```json
-    {
-        "proposal_id": "string",
-        "remaining_balance": "number",
-        "investment_plan": {
-            "allocations": [
-                {
-                    "type": "Fiat / Time Deposit | Crypto / DeFi | Liquidity Products / Stablecoins",
-                    "amount": "number",
-                    "expected_yield": "string",
-                    "duration": "string",
-                    "risk_level": "Low | Medium | High"
-                }
-            ],
-            "summary": "string"
-        },
-        "next_step": "POST /submit_investment_approval"
-    }
-    ```
-
----
-
-### Workflow Step 6: Submit Investment Plan Approval
-
-*   **Endpoint**: `POST /submit_investment_approval`
-*   **Description**: Submits the human decision on the investment plan.
-*   **Request Body**:
-    ```json
-    {
-        "proposal_id": "string",
-        "approval_decision": "approve | reject",
-        "comments": "string"
-    }
-    ```
-*   **Success Response**:
-    ```json
-    {
-        "success": true,
-        "execution_status": "SUCCESS | FAILURE",
-        "message": "Investment execution summary.",
-        "next_step": "GET /investment_execution_result/{proposal_id}"
-    }
-    ```
-
----
-
-### Workflow Step 7: Get Investment Execution Result
-
-*   **Endpoint**: `GET /investment_execution_result/<proposal_id>`
-*   **Description**: Returns the detailed result of the investment execution.
-*   **Success Response**: A JSON object containing `proposal_id`, `execution_status`, and details of the `executed_investments`.
-
 ## 4. Data Models
 
 ### Payment Proposal
@@ -173,17 +113,6 @@ The API follows a stateful, multi-step workflow:
 }
 ```
 
-### Investment Allocation
-
-```json
-{
-  "type": "Fiat / Time Deposit | Crypto / DeFi | Liquidity Products / Stablecoins",
-  "amount": "number",
-  "expected_yield": "string",
-  "duration": "string",
-  "risk_level": "Low | Medium | High"
-}
-```
 
 ## 5. Error Handling
 

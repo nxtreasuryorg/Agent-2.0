@@ -9,8 +9,6 @@ from datetime import datetime
 from .tools.excel_parser_tool import ExcelParserTool
 from .tools.proposal_formatter_tool import ProposalFormatterTool
 from .tools.payment_executor_tool import PaymentExecutorTool
-from .tools.investment_allocator_tool import InvestmentAllocatorTool
-from .tools.data_analyzer_tool import DataAnalyzerTool
 
 @CrewBase
 class TreasuryAgent():
@@ -25,17 +23,13 @@ class TreasuryAgent():
     risk_assessment_result: Optional[Dict] = None
     payment_proposal: Optional[Dict] = None
     payment_execution_result: Optional[Dict] = None
-    investment_plan: Optional[Dict] = None
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Initialize tools with dynamic configuration
-        self.data_analyzer = DataAnalyzerTool()
         self.excel_parser = ExcelParserTool()
         self.proposal_formatter = ProposalFormatterTool()
-        # PaymentExecutorTool and InvestmentAllocatorTool now load config dynamically
         self.payment_executor = PaymentExecutorTool()
-        self.investment_allocator = InvestmentAllocatorTool()
     
     @agent
     def manager(self) -> Agent:
@@ -66,15 +60,6 @@ class TreasuryAgent():
             verbose=True
         )
     
-    @agent
-    def investment_agent(self) -> Agent:
-        """Investment allocation specialist agent"""
-        return Agent(
-            config=self.agents_config['investment_agent'], # type: ignore[index]
-            tools=[self.investment_allocator],
-            allow_delegation=False,
-            verbose=True
-        )
     
     @task
     def workflow_coordination(self) -> Task:
@@ -110,23 +95,6 @@ class TreasuryAgent():
             context=[self.payment_proposal_generation()]
         )
     
-    @task
-    def investment_planning(self) -> Task:
-        """Investment planning task"""
-        return Task(
-            config=self.tasks_config['investment_planning'], # type: ignore[index]
-            agent=self.investment_agent(),
-            context=[self.payment_execution()]
-        )
-    
-    @task
-    def investment_execution(self) -> Task:
-        """Investment execution task"""
-        return Task(
-            config=self.tasks_config['investment_execution'], # type: ignore[index]
-            agent=self.investment_agent(),
-            context=[self.investment_planning()]
-        )
     
     @crew
     def crew(self) -> Crew:
@@ -237,56 +205,7 @@ class TreasuryAgent():
             self.workflow_state["payment_execution"] = payment_result
             self.workflow_state["steps_completed"].append("payment_execution")
             
-            # Create investment plan using remaining balance
-            # Get initial balance from request or use payment result balance info
-            initial_balance = self.workflow_state.get("initial_balance", 0)
-            remaining_balance = payment_result.get("balance_info", {}).get("remaining_balance", initial_balance)
-            investment_plan = self.investment_allocator._run(
-                remaining_balance=remaining_balance,
-                investment_preferences=self.workflow_state["constraints"].get("investment_preferences", {}),
-                risk_tolerance=self.workflow_state["risk_tolerance"]
-            )
-            
-            self.workflow_state["investment_plan"] = investment_plan
-            self.workflow_state["steps_completed"].append("investment_planning")
-            
-            # Return for second HITL checkpoint
-            self.workflow_state["requires_approval"] = "investment_plan"
-            self.workflow_state["status"] = "awaiting_investment_approval"
-            
-            return self.workflow_state
-            
-        except Exception as e:
-            self.workflow_state["status"] = "error"
-            self.workflow_state["error"] = str(e)
-            return self.workflow_state
-    
-    async def continue_after_investment_approval(
-        self, 
-        plan_id: str, 
-        approval_status: str
-    ) -> Dict[str, Any]:
-        """Continue workflow after investment plan approval"""
-        
-        if approval_status != "approved":
-            self.workflow_state["status"] = "rejected"
-            self.workflow_state["rejection_point"] = "investment_plan"
-            return self.workflow_state
-        
-        try:
-            # Execute investments using the investment allocator tool in execution mode
-            investment_execution = self.investment_allocator._run(
-                remaining_balance=0,  # Already allocated
-                investment_preferences={},
-                risk_tolerance=self.workflow_state["risk_tolerance"],
-                execution_mode=True,
-                investment_plan=self.workflow_state["investment_plan"]
-            )
-            
-            self.workflow_state["investment_execution"] = investment_execution
-            self.workflow_state["steps_completed"].append("investment_execution")
-            
-            # Mark workflow as complete
+            # Mark workflow as complete after payment execution
             self.workflow_state["status"] = "completed"
             self.workflow_state["end_time"] = datetime.now().isoformat()
             
@@ -296,3 +215,4 @@ class TreasuryAgent():
             self.workflow_state["status"] = "error"
             self.workflow_state["error"] = str(e)
             return self.workflow_state
+    

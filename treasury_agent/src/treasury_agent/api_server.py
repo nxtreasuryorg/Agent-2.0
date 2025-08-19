@@ -32,7 +32,6 @@ app.add_middleware(
 # In production, use a proper database
 workflow_storage: Dict[str, Any] = {}
 proposal_storage: Dict[str, Any] = {}
-investment_storage: Dict[str, Any] = {}
 crew_instances: Dict[str, TreasuryAgent] = {}
 
 # Pydantic models for request/response
@@ -76,17 +75,6 @@ class PaymentApprovalRequest(BaseModel):
     approval_decision: str = Field(description="approve_all | reject_all | partial")
     approved_payments: Optional[List[str]] = Field(default=None, description="List of payment IDs for partial approval")
     comments: Optional[str] = None
-
-class InvestmentApprovalRequest(BaseModel):
-    proposal_id: str
-    approval_decision: str = Field(description="approve | reject")
-    comments: Optional[str] = None
-
-class InvestmentPlan(BaseModel):
-    proposal_id: str
-    remaining_balance: float
-    investment_plan: Dict[str, Any]
-    next_step: str
 
 @app.get("/health", response_model=HealthResponse)
 async def health_check():
@@ -196,10 +184,6 @@ async def submit_payment_approval(approval: PaymentApprovalRequest):
         # Update storage
         workflow_storage[proposal_id] = updated_workflow
         
-        # Store investment plan if generated
-        if "investment_plan" in updated_workflow:
-            investment_storage[proposal_id] = updated_workflow["investment_plan"]
-        
         execution_status = updated_workflow.get("payment_execution", {}).get("status", "SUCCESS")
         return {
             "success": True,
@@ -227,79 +211,6 @@ async def get_payment_execution_result(proposal_id: str):
     
     return workflow["payment_execution"]
 
-@app.get("/get_investment_plan/{proposal_id}", response_model=InvestmentPlan)
-async def get_investment_plan(proposal_id: str):
-    """Retrieve investment plan by proposal ID"""
-    if proposal_id not in investment_storage:
-        raise HTTPException(status_code=404, detail="Investment plan not found")
-    
-    plan = investment_storage[proposal_id]
-    
-    # Get remaining balance from workflow storage
-    workflow = workflow_storage.get(proposal_id, {})
-    remaining_balance = workflow.get("payment_execution", {}).get("balance_info", {}).get("remaining_balance", 0)
-    
-    return InvestmentPlan(
-        proposal_id=proposal_id,
-        remaining_balance=remaining_balance,
-        investment_plan=plan,
-        next_step="POST /submit_investment_approval"
-    )
-
-@app.post("/submit_investment_approval")
-async def submit_investment_approval(approval: InvestmentApprovalRequest):
-    """Submit approval/rejection for investment plan"""
-    try:
-        proposal_id = approval.proposal_id
-        
-        if proposal_id not in workflow_storage:
-            raise HTTPException(status_code=404, detail="Proposal not found")
-        
-        if proposal_id not in crew_instances:
-            raise HTTPException(status_code=404, detail="Crew instance not found")
-        
-        crew = crew_instances[proposal_id]
-        
-        # Get the investment plan ID
-        investment_plan = investment_storage.get(proposal_id, {})
-        plan_id = investment_plan.get("plan_id", f"INV-{proposal_id}")
-        
-        # Continue workflow after investment approval  
-        approval_status = "approved" if approval.approval_decision == "approve" else "rejected"
-        updated_workflow = await crew.continue_after_investment_approval(
-            plan_id=plan_id,
-            approval_status=approval_status
-        )
-        
-        # Update storage
-        workflow_storage[proposal_id] = updated_workflow
-        
-        execution_status = updated_workflow.get("investment_execution", {}).get("status", "SUCCESS")
-        return {
-            "success": True,
-            "execution_status": execution_status,
-            "message": "Investment execution summary.",
-            "next_step": f"GET /investment_execution_result/{proposal_id}"
-        }
-        
-    except Exception as e:
-        return JSONResponse(
-            status_code=500,
-            content={"error": str(e), "success": False}
-        )
-
-@app.get("/investment_execution_result/{proposal_id}")
-async def get_investment_execution_result(proposal_id: str):
-    """Get investment execution results"""
-    if proposal_id not in workflow_storage:
-        raise HTTPException(status_code=404, detail="Proposal not found")
-    
-    workflow = workflow_storage[proposal_id]
-    
-    if "investment_execution" not in workflow:
-        raise HTTPException(status_code=404, detail="Investment execution not found")
-    
-    return workflow["investment_execution"]
 
 # Additional endpoints for workflow management
 @app.get("/workflow_status/{proposal_id}")

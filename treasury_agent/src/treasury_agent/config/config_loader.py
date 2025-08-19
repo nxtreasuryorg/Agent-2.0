@@ -55,21 +55,12 @@ class TreasuryConfig:
                 "processing_fee_rate": 0.001,
                 "default_currency": "USDT",
                 "simulation_mode": True
-            },
-            "investment_allocator": {
-                "execution_fee_rate": 0.001,
-                "min_recommendation_threshold": 1000,
-                "default_risk_tolerance": "medium"
             }
         }
     
     def get_payment_config(self) -> Dict[str, Any]:
         """Get payment executor configuration"""
         return self._config.get("payment_executor", {})
-    
-    def get_investment_config(self) -> Dict[str, Any]:
-        """Get investment allocator configuration"""
-        return self._config.get("investment_allocator", {})
     
     def get_processing_fee_rate(self) -> float:
         """Get processing fee rate for payments"""
@@ -78,26 +69,12 @@ class TreasuryConfig:
             return float(env_override)
         return self.get_payment_config().get("processing_fee_rate", 0.001)
     
-    def get_execution_fee_rate(self) -> float:
-        """Get execution fee rate for investments"""
-        env_override = os.environ.get("TREASURY_EXECUTION_FEE_RATE")
-        if env_override:
-            return float(env_override)
-        return self.get_investment_config().get("execution_fee_rate", 0.001)
-    
     def get_default_currency(self) -> str:
         """Get default currency for payments"""
         env_override = os.environ.get("TREASURY_CURRENCY")
         if env_override:
             return env_override
         return self.get_payment_config().get("default_currency", "USDT")
-    
-    def get_min_threshold(self) -> float:
-        """Get minimum recommendation threshold for investments"""
-        env_override = os.environ.get("TREASURY_MIN_THRESHOLD")
-        if env_override:
-            return float(env_override)
-        return self.get_investment_config().get("min_recommendation_threshold", 1000)
     
     def is_simulation_mode(self) -> bool:
         """Check if simulation mode is enabled"""

@@ -31,14 +31,3 @@ payment_specialist:
     You're an expert in payment processing and financial operations. You specialize in
     creating clear, accurate payment proposals that comply with organizational policies.
     Your proposals are well-structured and easy for stakeholders to review and approve.
-
-investment_agent:
-  role: >
-    Investment Allocation Specialist
-  goal: >
-    Allocate remaining funds to optimal investment opportunities including
-    liquidity products, stablecoins, and other short-term investment options
-  backstory: >
-    You're an investment strategist with expertise in short-term investment products,
-    liquidity management, and yield optimization. You excel at creating balanced
-    investment plans that consider risk, return, and liquidity requirements.
