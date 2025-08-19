@@ -9,6 +9,7 @@ import asyncio
 from datetime import datetime
 import uuid
 import os
+import logging
 
 from .crew import TreasuryAgent
 
@@ -19,12 +20,16 @@ app = FastAPI(
     version="1.0.0"
 )
 
+# Configure logging level for this module so INFO shows up under uvicorn
+logging.basicConfig(level=logging.INFO)
+
 # Configure CORS
+allowed_origins = os.environ.get("CORS_ORIGINS", "http://localhost:3000,http://localhost:5000,http://127.0.0.1:3000,http://127.0.0.1:5000").split(",")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, specify actual origins
+    allow_origins=allowed_origins,  # Configurable origins from environment
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST"],  # Specific methods only
     allow_headers=["*"],
 )
 
@@ -61,14 +66,18 @@ class SubmitRequestResponse(BaseModel):
 
 class PaymentProposal(BaseModel):
     proposal_id: str
-    type: str
-    timestamp: str
-    status: str
-    payment_details: Dict[str, Any]
+    agent_analysis: Optional[Dict[str, Any]] = None  # Required by API docs
+    payment_proposals: Optional[List[Dict[str, Any]]] = None  # Required by API docs  
     risk_assessment: Dict[str, Any]
-    constraints_validation: Dict[str, Any]
-    summary: Dict[str, Any]
-    approval_metadata: Dict[str, Any]
+    
+    # Legacy fields for backward compatibility
+    type: Optional[str] = None
+    timestamp: Optional[str] = None
+    status: Optional[str] = None
+    payment_details: Optional[Dict[str, Any]] = None
+    constraints_validation: Optional[Dict[str, Any]] = None
+    summary: Optional[Dict[str, Any]] = None
+    approval_metadata: Optional[Dict[str, Any]] = None
 
 class PaymentApprovalRequest(BaseModel):
     proposal_id: str
@@ -109,7 +118,8 @@ async def submit_request(
         # Create new crew instance
         crew = TreasuryAgent()
         crew_instances[proposal_id] = crew
-        
+        logging.info(f"[submit_request] Received request. proposal_id={proposal_id}, filename={excel_file.filename}")
+
         # Process workflow (async) - Convert API schema to internal format
         constraints = {
             "minimum_balance": request_config.risk_config.min_balance_usd,
@@ -120,12 +130,38 @@ async def submit_request(
             "user_notes": request_config.user_notes
         }
         
+        # CrewAI kickoff behavior: default to ON and BLOCKING per requirements
+        use_crew = os.environ.get("TREASURY_USE_CREW", "true").lower() == "true"
+        crew_blocking = os.environ.get("TREASURY_CREW_BLOCKING", "true").lower() == "true"
+        if use_crew:
+            try:
+                crew_inputs = {
+                    # Make constraints available to task templates (e.g., tasks.yaml placeholders)
+                    "minimum_balance": constraints.get("minimum_balance"),
+                    "transaction_limits": constraints.get("transaction_limits"),
+                    "user_notes": constraints.get("user_notes"),
+                    "user_id": constraints.get("user_id"),
+                    "current_year": str(datetime.now().year),
+                }
+                if crew_blocking:
+                    logging.info(f"[submit_request] Starting CrewAI kickoff (blocking). proposal_id={proposal_id}")
+                    # Run kickoff in a worker thread and await completion so FastAPI loop isn't blocked
+                    kick_result = await asyncio.to_thread(lambda: crew.crew().kickoff(inputs=crew_inputs))
+                    logging.info(f"[submit_request] CrewAI kickoff finished (blocking). proposal_id={proposal_id}")
+                else:
+                    logging.info(f"[submit_request] Starting CrewAI kickoff (non-blocking). proposal_id={proposal_id}")
+                    asyncio.create_task(asyncio.to_thread(lambda: crew.crew().kickoff(inputs=crew_inputs)))
+            except Exception as e:
+                logging.warning(f"[submit_request] CrewAI kickoff failed (continuing with tool flow). error={e}")
+
+        logging.info(f"[submit_request] Starting tool-based workflow processing. proposal_id={proposal_id}")
         workflow_result = await crew.process_workflow(
             excel_data=excel_content,
             constraints=constraints,
             risk_tolerance="medium"  # Default for now
         )
-        
+        logging.info(f"[submit_request] Workflow processing finished. proposal_id={proposal_id}, status={workflow_result.get('status')}")
+
         # Store workflow state
         workflow_storage[proposal_id] = workflow_result
         
@@ -154,11 +190,21 @@ async def get_payment_proposal(proposal_id: str):
     
     proposal = proposal_storage[proposal_id]
     
-    # Ensure proposal has required fields
+    # Ensure proposal has required fields and matches API documentation format
     if "proposal_id" not in proposal:
         proposal["proposal_id"] = proposal_id
     
-    return PaymentProposal(**proposal)
+    # Transform proposal to match API documentation format
+    api_format_proposal = {
+        "proposal_id": proposal_id,
+        "agent_analysis": proposal.get("analysis", {}),
+        "payment_proposals": proposal.get("payment_details", {}).get("payments", []),
+        "risk_assessment": proposal.get("risk_assessment", {}),
+        # Keep legacy fields for backward compatibility
+        **proposal
+    }
+    
+    return PaymentProposal(**api_format_proposal)
 
 @app.post("/submit_payment_approval")
 async def submit_payment_approval(approval: PaymentApprovalRequest):

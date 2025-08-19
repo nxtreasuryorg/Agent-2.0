@@ -99,19 +99,17 @@ class TreasuryAgent():
     @crew
     def crew(self) -> Crew:
         """Creates the TreasuryAgent crew with hierarchical process"""
+        # Important: The manager must NOT be in the agents list for hierarchical process
         return Crew(
-            agents=self.agents,
+            agents=[
+                self.risk_assessor(),
+                self.payment_specialist(),
+            ],
             tasks=self.tasks,
             process=Process.hierarchical,  # Use hierarchical for manager-led coordination
             manager_agent=self.manager(),  # Explicitly set the manager
             verbose=True,
-            memory=True,  # Enable memory for better context retention
-            embedder={
-                "provider": "openai",
-                "config": {
-                    "model": "text-embedding-3-small"
-                }
-            }
+            memory=False  # Disable memory to avoid OpenAI dependency
         )
     
     async def process_workflow(
